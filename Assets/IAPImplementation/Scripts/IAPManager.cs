@@ -40,7 +40,7 @@ namespace Assets.IAPImplementation.Scripts
         private IExtensionProvider _extensionProvider;
         private Product _currentProduct;
         private CrossPlatformValidator _validator;
-        public string _environment = "production";
+        private string _environment = "production";
 
         #endregion
 
@@ -129,7 +129,7 @@ namespace Assets.IAPImplementation.Scripts
 
         private void BuyProduct(string productId)
         {
-            _currentProduct = GetProductById();
+            _currentProduct = _storeController.products.WithID(productId);
 
             if (IsAbleToPurchase()) _storeController.InitiatePurchase(_currentProduct);
             else OnPurchased?.Invoke(
@@ -137,28 +137,8 @@ namespace Assets.IAPImplementation.Scripts
                 $"BuyProductID: FAIL. Not purchasing product, " + 
                 $"either is not found or is not available for purchase"
                 );
-
-            #region Local functions
-
-            Product GetProductById()
-            {
-                LocalizeProductId();
-
-                return _storeController.products.WithID(productId);
-
-                void LocalizeProductId()
-                {
-                    RuntimePlatform platform = Application.platform;
-                    string applicationId = Application.identifier;
-                    if (!productId.Contains(applicationId) &&
-                        platform == RuntimePlatform.IPhonePlayer)
-                        productId = $"{applicationId}.{productId}";
-                }
-            }
-
+                
             bool IsAbleToPurchase() => _currentProduct != null && _currentProduct.availableToPurchase;
-
-            #endregion
         }
 
         public PurchaseProcessingResult ProcessPurchase(PurchaseEventArgs purchaseEvent)
