@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using Unity.Services.Core;
 using Unity.Services.Core.Environments;
 using UnityEngine;
@@ -34,13 +35,15 @@ namespace Assets.IAPImplementation.Scripts
 
         public UnityAction<bool, string> OnInitialized { get; set; }
         public UnityAction<bool, string> OnPurchased { get; set; }
-        public UnityAction<bool, string> OnRestored { get; set; }
 
         private IStoreController _storeController;
         private IExtensionProvider _extensionProvider;
         private Product _currentProduct;
         private CrossPlatformValidator _validator;
         private string _environment = "production";
+        private readonly float _dueTime = 30f;
+        private IEnumerator _timingOut;
+        private bool _isTimedOut;
 
         #endregion
 
@@ -78,6 +81,8 @@ namespace Assets.IAPImplementation.Scripts
 
         private Product GetProductById(string id) => 
             _storeController.products.WithID(id);
+
+        public void ResetCallbacks() => OnPurchased = null;
 
         #region Local Members
 
@@ -129,6 +134,8 @@ namespace Assets.IAPImplementation.Scripts
 
         private void BuyProduct(string productId)
         {
+            StartTimingOut();
+
             _currentProduct = _storeController.products.WithID(productId);
 
             if (IsAbleToPurchase()) _storeController.InitiatePurchase(_currentProduct);
@@ -143,6 +150,10 @@ namespace Assets.IAPImplementation.Scripts
 
         public PurchaseProcessingResult ProcessPurchase(PurchaseEventArgs purchaseEvent)
         {
+            if (_isTimedOut) throw new Exception("Transaction failed. Timed out");
+
+            StopTimingOut();
+
             Product product = purchaseEvent.purchasedProduct;
 
             try
@@ -161,7 +172,7 @@ namespace Assets.IAPImplementation.Scripts
                     string productId = @$"{purchaseEvent
                     .purchasedProduct
                     .definition
-                    .id.ToString()}";
+                    .id}";
 
                     OnPurchased?.Invoke(true, $"Purchased product: {productId}");
                 }
@@ -170,7 +181,6 @@ namespace Assets.IAPImplementation.Scripts
             {
                 OnPurchaseFailed(product, PurchaseFailureReason.SignatureInvalid);
             }
-
 
             return PurchaseProcessingResult.Complete;
         }
@@ -195,6 +205,8 @@ namespace Assets.IAPImplementation.Scripts
 
         public void OnPurchaseFailed(Product product, PurchaseFailureReason failureReason)
         {
+            StopTimingOut();
+
             OnPurchased?.Invoke(
                 false,
                 $"OnPurchaseFailed: FAIL. " +
@@ -209,13 +221,49 @@ namespace Assets.IAPImplementation.Scripts
         
         private void RestorePurchases()
         {
+            StartTimingOut();
+
             _extensionProvider
                 .GetExtension<IAppleExtensions>()
                 .RestoreTransactions(isRestored =>
                 {
-                    if (isRestored) OnRestored?.Invoke(true, "Restore purchases succeeded.");
-                    else OnRestored?.Invoke(false, "Restore purchases failed.");
+                    if (!isRestored) OnPurchased?.Invoke(false, "Restore purchases failed.");
                 });
+        }
+
+        #endregion
+
+        #region Time Out
+
+        private void StartTimingOut()
+        {
+            _isTimedOut = false;
+            _timingOut = TimingOut(_dueTime);
+            StartCoroutine(_timingOut);
+        }
+
+        private void StopTimingOut()
+        {
+            if (_timingOut == null) return;
+
+            StopCoroutine(_timingOut);
+        }
+        
+        private IEnumerator TimingOut(float dueTime)
+        {
+            float currentTime = default;
+
+            while (currentTime < dueTime)
+            {
+                currentTime += Time.deltaTime;
+                yield return null;
+            }
+
+            _isTimedOut = true;
+            OnPurchased?.Invoke(
+                false,
+                "Transaction failed. Timed out."
+                );
         }
 
         #endregion
