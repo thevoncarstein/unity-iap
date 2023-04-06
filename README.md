@@ -35,6 +35,10 @@ A quick implementation of Unity IAP service.
 # Note
 - Call "Initialize()" to re-initialize the service if starting the game without internet connection. (Register to "OnInitialized" to know what-is-going-on to the service).
 
+# Troubleshooting
+- Google Rejection's Error: "We've detected this app uses an unsupported version of Play billing. Please upgrade to Billing Library version 4 or newer to publish this app."
+=> Please update the Unity IAP package to 4.4.1 or newer.
+
 ------
 It's not that quick, eh?
 Happy developing.
