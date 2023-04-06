@@ -7,34 +7,17 @@ using UnityEngine.Events;
 using UnityEngine.Purchasing;
 using UnityEngine.Purchasing.Security;
 
-namespace Assets.IAPImplementation.Scripts
+namespace IAPImplementation.Scripts
 {
     public class IAPManager : MonoBehaviour, IStoreListener
     {
         #region Fields and Properties
 
-        #region Singleton
-
-        private static IAPManager _instance;
-
-        public static IAPManager Instance
-        {
-            get
-            {
-                if (_instance == null)
-                {
-                    _instance = FindObjectOfType<IAPManager>() ??
-                        new GameObject(nameof(IAPManager)).AddComponent<IAPManager>();
-                }
-
-                return _instance;
-            }
-        }
-
-        #endregion
+        public static IAPManager Instance { get; private set; }
 
         public UnityAction<bool, string> OnInitialized { get; set; }
         public UnityAction<bool, string> OnPurchased { get; set; }
+        public UnityAction<bool, string> OnRestored { get; set; }
 
         private IStoreController _storeController;
         private IExtensionProvider _extensionProvider;
@@ -49,25 +32,21 @@ namespace Assets.IAPImplementation.Scripts
 
         private void Awake()
         {
-            #region Setup Singleton
-
-            if (IsExist())
-            {
-                Destroy(this.gameObject);
-                return;
-            }
-            else 
-            {
-                _instance = this;
-                DontDestroyOnLoad(this.gameObject);
-            }
-
-            bool IsExist() => _instance != null && _instance != this;
-
-            #endregion
+            SetupSingleton();
         }
 
-        private void Start() => Initialize();
+        private void SetupSingleton()
+        {
+            bool isExist = Instance != null && Instance != this;
+            if (isExist)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
 
         public void PurchaseProduct(string productId) => BuyProduct(productId);
 
@@ -88,7 +67,7 @@ namespace Assets.IAPImplementation.Scripts
 
         #region Initialization
 
-        private void Initialize() => InitializeServices();
+        internal void Initialize() => InitializeServices();
 
         private async void InitializeServices()
         {
@@ -227,7 +206,8 @@ namespace Assets.IAPImplementation.Scripts
                 .GetExtension<IAppleExtensions>()
                 .RestoreTransactions(isRestored =>
                 {
-                    if (!isRestored) OnPurchased?.Invoke(false, "Restore purchases failed.");
+                    if (!isRestored) OnRestored?.Invoke(false, "Unable to request purchase restoration.");
+                    else OnRestored.Invoke(true, "Restoring purchase requested successfully.");
                 });
         }
 
@@ -260,10 +240,7 @@ namespace Assets.IAPImplementation.Scripts
             }
 
             _isTimedOut = true;
-            OnPurchased?.Invoke(
-                false,
-                "Transaction failed. Timed out."
-                );
+            OnPurchased?.Invoke(false, "Transaction failed. Timed out.");
         }
 
         #endregion

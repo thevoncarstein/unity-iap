@@ -1,9 +1,7 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Purchasing;
 
-namespace Assets.IAPImplementation.Scripts
+namespace IAPImplementation.Scripts
 {
     public class IAPFakeStore : MonoBehaviour
     {
