@@ -25,8 +25,10 @@ A quick implementation of Unity IAP service.
 5. Setup App Store Connect (optional)
 - App Store stopped supporting importing from IAP Catalog, so you have to manual create the product one by one on the store.
 6. Usage:
+- Register to OnInitialized and call Initialize() at the beginning.
 - In your code, call "IAPManager.Instance.BuyProduct(string productId)" to buy the product with id "productId" (which is listed in product catalog).
 - Register "OnPurchase" event to get notifies about the purchase.
+- Register "OnRestore" event to get notification about the restore request.
 - Call "...RestoreProducts()" to restore users' purchased non-consumable products. (The events will go to OnPurchase).
 - Call "GetProductPriceById(string productId)" to get the price. (E.g $10)
 - Call "GetProductValueById(string productId)" to get the value. (E.g 10k Coins)
